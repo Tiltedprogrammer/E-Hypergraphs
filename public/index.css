@@ -1,0 +1,42 @@
+#img {
+  display: block;
+  margin: auto;
+  height: 128px;
+  width: 128px;
+  padding: 2rem;
+}
+
+#canvas {
+  display: block;
+  margin: 2rem auto;
+  width: 540px;
+  height: 540px;
+}
+
+
+circle {
+	fill: black;
+  r : 3px;
+}
+
+.interface{
+  fill: #e6e6ff;
+  stroke: #9999ff;
+  fill-opacity: 0.4;
+  stroke-dasharray: 2
+}
+
+.arrow{
+  fill : #9999ff;
+  stroke: #9999ff;
+}
+
+.rounded {
+  fill: #ddd;
+  stroke: black;
+  fill-opacity : 0.2;
+  stroke-width : 2px;
+  rx : 10px;
+  ry : 8px;
+  stroke-linejoin : round;
+}
