@@ -1,10 +1,13 @@
-import * as d3 from 'd3';
-import { Hypergraph } from "./hypergraph";
+import { Hypergraph} from "./hypergraph";
 
 
 export namespace ExampleOne {
 
     export const graphOne = new Hypergraph();
+
+    const greenStyle : Map<string,string> = new Map();
+    greenStyle.set('fill','#83FF99')
+    greenStyle.set('stroke','#2FFE54')
 
     var nodeA = graphOne.addNode("A");
     var nodeB = graphOne.addNode("B");
@@ -25,7 +28,7 @@ export namespace ExampleOne {
     var nodeJ = graphThree.addNode("J")
     var nodeI = graphThree.addNode("I")
 
-    graphTwo.addPlainEdge([nodeD],[nodeE],"g")
+    graphTwo.addPlainEdge([nodeD],[nodeE],"\\frac{\\sqrt{3}}{2}",greenStyle)
 
     graphThree.addPlainEdge([nodeF],[nodeG],"e")
     graphThree.addPlainEdge([nodeG],[nodeJ, nodeI],"h")

@@ -2,14 +2,22 @@ import * as d3 from 'd3';
 import * as d3_arrow from 'd3-arrow';
 
 
-// mathjax stuff
+export {d3};
 
+export type Orientation = "vertical" | "horizontal";
 
 export type NodeType = string;
 
-export abstract class Node {
+interface Styled<T> {
+
+  // takes some value a and additional data
+  style(a : T) : T
+}
+
+export abstract class Node<T> implements Styled<T> {
 
   label: NodeType;
+  abstract style(a : T): T;
 
   constructor(label: NodeType){
     this.label = label;
@@ -17,15 +25,16 @@ export abstract class Node {
 
 }
 
-export abstract class Edge {
+export abstract class Edge<T> implements Styled<T> {
 
-  inNodes: Node[];
-  oNodes: Node[];
+  inNodes: Node<T>[];
+  oNodes: Node<T>[];
   label: string | null;
+  abstract style(a : T): T;
 
   inHypergraphs: Hypergraph[] | null;
 
-  constructor(inNodes : Node[], oNodes: Node[], label: string | null = null, inHypergraphs : Hypergraph[] | null = null) {
+  constructor(inNodes : Node<T>[], oNodes: Node<T>[], label: string | null = null, inHypergraphs : Hypergraph[] | null = null) {
     
     this.inNodes = inNodes;
     this.oNodes = oNodes;
@@ -35,24 +44,90 @@ export abstract class Edge {
 
 }
 
-class NodeWithId extends Node {
+type D3Selection = d3.Selection<any, any, any, any>
+
+const defaultEdgeStyle : Map<string,string> = new Map()
+
+defaultEdgeStyle.set('fill-opacity','0.2')
+defaultEdgeStyle.set('stroke-width','2px')
+defaultEdgeStyle.set('rx','10px')
+defaultEdgeStyle.set('ry','8px')
+defaultEdgeStyle.set('stroke-linejoin','round')
+defaultEdgeStyle.set('fill','#ddd')
+defaultEdgeStyle.set('stroke','black')
+
+
+const defaultNodeStyle : Map<string,string> = new Map()
+
+defaultNodeStyle.set('fill','black')
+defaultNodeStyle.set('r','3px')
+
+class NodeWithId extends Node<D3Selection> {
     
     id : number;
-    
-    constructor(label : NodeType, id : number) {
+
+    private data : Map<string, string> | null;
+
+    style(a: D3Selection): D3Selection {
+  
+      var result = a
+
+      defaultNodeStyle.forEach((v,k) => {
+        result = result.style(k,v)
+      })
+
+      if (this.data != null) {
+        this.data.forEach((v,k) => {
+          result = result.style(k,v)
+        })
+      }
+      return result
+    }
+
+    constructor(label : NodeType,
+                id : number,
+                style: Map<string,string> | null) {
+      
       super(label);
+
       this.id = id;
+      this.data = style;
     }
   }
 
-class EdgeWithId extends Edge {
+class EdgeWithId extends Edge<D3Selection> {
     
     id : number;
 
-    constructor(inNodes: Node[], oNodes: Node[], label : string | null = null, inEdges: Hypergraph[] | null = null, id : number) {
+    private data : Map<string,string> | null;
+
+    style(a: D3Selection): D3Selection {
+  
+      var result = a
+
+      defaultEdgeStyle.forEach((v,k) => {
+        result = result.style(k,v)
+      })
+
+
+      if (this.data != null) {
+        this.data.forEach((v,k) => {
+          result = result.style(k,v)
+        })
+      }
+      return result
+    }
+
+    constructor(inNodes: Node<D3Selection>[],
+                oNodes: Node<D3Selection>[],
+                label : string | null = null,
+                inEdges: Hypergraph[] | null = null,
+                id : number,
+                data : Map<string,string> | null = null) {
       
       super(inNodes, oNodes, label, inEdges);
       this.id = id;
+      this.data = data;
     }
 
   }
@@ -63,11 +138,11 @@ export class Hypergraph{
     
   idCounter: number;
 
-  graph: Edge[];
+  graph: Edge<D3Selection>[];
   
   // maps nodes to their edges
-  inEdges: Map<number,Edge[]> = new Map(); //  edges e_i s.t. target(e_i) = node with id = id
-  oEdges: Map<number,Edge[]> = new Map(); // edges e_i s.t. source(e_i) = node with id = id
+  inEdges: Map<number,Edge<D3Selection>[]> = new Map(); //  edges e_i s.t. target(e_i) = node with id = id
+  oEdges: Map<number,Edge<D3Selection>[]> = new Map(); // edges e_i s.t. source(e_i) = node with id = id
 
 
   constructor(id : number = 0){
@@ -77,19 +152,23 @@ export class Hypergraph{
     this.idCounter = id;
   }
 
-  addNode(label: NodeType) : Node {
+  addNode(label: NodeType,
+          style: Map<string,string> | null = null) : Node<D3Selection> {
 
-    var node : Node = new NodeWithId(label,this.idCounter);
+    var node = new NodeWithId(label,this.idCounter,style);
     this.idCounter++;
 
     return node;
   }
 
-  addPlainEdge(inNodes: Node[], oNodes: Node[], label: string) : Edge {
+  addPlainEdge(inNodes: Node<D3Selection>[],
+               oNodes: Node<D3Selection>[],
+               label: string,
+               style : Map<string,string> | null = null) : Edge<D3Selection> {
 
-    var edge : Edge = new EdgeWithId(inNodes, oNodes, label, null, this.idCounter);
+    var edge = new EdgeWithId(inNodes, oNodes, label, null, this.idCounter, style);
+    
     this.graph.push(edge);
-
     this.idCounter++;
 
 
@@ -119,9 +198,11 @@ export class Hypergraph{
     return edge;
   }
 
-  addHierarchicalEdge(inNodes: Node[], oNodes: Node[], inHypergraphs: Hypergraph[]) : Edge {
+  addHierarchicalEdge(inNodes: Node<D3Selection>[],
+                      oNodes: Node<D3Selection>[],
+                      inHypergraphs: Hypergraph[]) : Edge<D3Selection> {
 
-    var edge : Edge = new EdgeWithId(inNodes, oNodes, null, inHypergraphs, this.idCounter);
+    var edge = new EdgeWithId(inNodes, oNodes, null, inHypergraphs, this.idCounter);
 
      this.graph.push(edge);
 
@@ -156,9 +237,9 @@ export class Hypergraph{
 
   topSort() {
 
-    var sortedEdges : Map<number,Map<number,Edge>> = new Map();
+    var sortedEdges : Map<number,Map<number,Edge<D3Selection>>> = new Map();
 
-    var inputNodes : Node[] = [];
+    var inputNodes : Node<D3Selection>[] = [];
     
     // all nodes v such that there exists an edge : source(edge) = v 
     // and there is no edges e : target(e) = v
@@ -172,7 +253,7 @@ export class Hypergraph{
         })
     });
 
-    var frontierEdges: Map<number, Edge> = new Map();
+    var frontierEdges: Map<number, Edge<D3Selection>> = new Map();
 
     inputNodes.forEach(node => {
 
@@ -234,7 +315,8 @@ export class Hypergraph{
     return sortedEdges;
   }
 
-  show(selection : d3.Selection<SVGGElement, unknown,HTMLElement,null>,
+  show(selection : d3.Selection<any,any,HTMLElement,any>,
+       orientation : Orientation = "vertical",
        initialHorizontalOffset : number = 1,
        initialVerticalOffset : number = 10) : [number, number] {
 
@@ -242,7 +324,7 @@ export class Hypergraph{
     type entry = {id : string, position : [number, number], parent : [number,number] | null, visible : boolean};
     type positionOffset = {position : [number, number], horizontalOffset: number, verticalOffset: number}
 
-    function mkBody(nodes : Node[],
+    function mkBody(nodes : Node<D3Selection>[],
                     nodesToLocation : Map<number, positionOffset>, 
                     array: entry[],
                     offset : number,
@@ -374,7 +456,7 @@ export class Hypergraph{
 
                 edge.inHypergraphs!.forEach((hypergraph, index) => {
                     
-                    const widthHeight : [number, number] = hypergraph.show(hierarchicalBoxGroup,innerHorizontalOffset,innerVerticalOffset)
+                    const widthHeight : [number, number] = hypergraph.show(hierarchicalBoxGroup,orientation,innerHorizontalOffset,innerVerticalOffset)
                     
                     innerHorizontalOffset += (widthHeight[0] <= 3? 60 : (widthHeight[0]) * 15 + 40)
                     offsets.push(innerHorizontalOffset)
@@ -437,31 +519,6 @@ export class Hypergraph{
                                             totalWidthAdjusted / 2,
                                             false);
 
-                hierarchicalBoxGroup.selectAll('dummy')
-                        .data(bodyOutArray)
-                        .join('circle')
-                        .attr('cx', d => d.position[0])
-                        .attr('cy', d => d.position[1])
-                        .classed('circle', true)
-                        .filter(d => d.visible == false)
-                        .style('r', 0);
-
-                hierarchicalBoxGroup.selectAll('dummy')
-                        .data(bodyOutArray)
-                        .join('text')
-                        .attr('dx', d => d.position[0] + 4)
-                        .attr('dy', d => d.position[1])
-                        .filter(d => d.visible == true)
-                        .text(d => d.id)
-
-                hierarchicalBoxGroup.append('g')
-                                    .append('rect')
-                                    .attr('x',0)
-                                    .attr('y',40)
-                                    .attr('width',totalWidthAdjusted + 5)
-                                    .attr('height',120 * maxHeight)
-                                    .classed('rounded', true);
-
                 var link = d3.linkVertical<any,any,entry>()
                              .source(d => d.parent)
                              .target(d => d.position);
@@ -475,6 +532,40 @@ export class Hypergraph{
                     .attr("stroke", "black")
                     .style("stroke-width", "1px");
 
+                const nodes = hierarchicalBoxGroup.selectAll('dummy')
+                                                  .data(bodyOutArray)
+                                                  .join('circle')
+                                                  .attr('cx', d => d.position[0])
+                                                  .attr('cy', d => d.position[1])
+
+                nodes.filter(d => d.visible == true)
+                     .each((_,i,g) => {edge.inNodes.concat(edge.oNodes)[i].style(d3.select(g[i]))})
+                                                  
+                nodes.filter(d => d.visible == false)
+                     .style('r', 0);
+
+                
+
+                hierarchicalBoxGroup.selectAll('dummy')
+                        .data(bodyOutArray)
+                        .join('g')
+                        .attr('transform',d => `translate(${d.position[0] + 4},${d.position[1]})`)
+                        .append('text')
+                        .filter(d => d.visible == true)
+                        .text(d => d.id)
+                        .attr('transform',d => orientation == "horizontal" ? 'rotate(90)' : 'rotate(0)')
+
+                const hierarchicalBox = hierarchicalBoxGroup.append('g')
+                                                            .append('rect')
+                                                            .attr('x',0)
+                                                            .attr('y',40)
+                                                            .attr('width',totalWidthAdjusted + 5)
+                                                            .attr('height',120 * maxHeight)
+                                                            // .classed('rounded', true);
+
+                edge.style(hierarchicalBox)
+
+
             } else {
 
                 var edgeSelection = selection.append('g').attr('transform',`translate(${horizontalOffset},${verticalOffset})`)
@@ -487,61 +578,65 @@ export class Hypergraph{
                 const bodyOutArray = mkBody(edge.oNodes, nodesToLocation, bodyInArray, 130, horizontalOffset, verticalOffset, width, middle, false);
 
                 const tex1 = MathJax.tex2svg(edge.label!);
-                const texNode = tex1.querySelector("svg");
+                const texNode = tex1.querySelector("svg")
 
                 horizontalOffset += width;
                     
                 labelGroup
-                .append(() => texNode)
-                .attr("x",middle - 8) //middle of the body box
-                .attr("y",80) //middle of the body box
-                .attr("width", 16)
-                .attr("height",16)
+                  .attr('transform',d => orientation == "horizontal"? 
+                    `translate(${middle + 8},${80}) rotate(90)` : `translate(${middle - 8},${80})`)
+                  .append(() => texNode)
+                  .attr("width", 16)
+                  .attr("height",16)
+
+                  var link = d3.linkVertical<any,any,entry>()
+                               .source(d => d.parent)
+                               .target(d => d.position);
 
 
-                bodyGroup.selectAll('circle')
-                        .data(bodyOutArray)
-                        .join('circle')
-                        .attr('cx', d => d.position[0])
-                        .attr('cy', d => d.position[1])
-                        .classed('circle', true)
-                        .filter(d => d.visible == false)
-                        .style('r', 0);
+                bodyGroup
+                    .selectAll("path")
+                    .data(bodyOutArray)
+                    .join("path")
+                    .attr("d", link)
+                    .attr("fill", "none")
+                    .attr("stroke", "black")
+                    .style("stroke-width", "1px");
+
+
+                const nodes = bodyGroup.selectAll('dummy')
+                  .data(bodyOutArray)
+                  .join('circle')
+                  .attr('cx', d => d.position[0])
+                  .attr('cy', d => d.position[1])
+
+                nodes.filter(d => d.visible == true)
+                     .each((_,i,g) => {edge.inNodes.concat(edge.oNodes)[i].style(d3.select(g[i]))})
+                                  
+                nodes.filter(d => d.visible == false)
+                     .style('r', 0);
                 
                 bodyGroup.selectAll('text')
                         .data(bodyOutArray)
-                        .join('text')
-                        .attr('dx', d => d.position[0] + 4)
-                        .attr('dy', d => d.position[1])
+                        .join('g')
+                        .attr('transform',d => `translate(${d.position[0] + 4},${d.position[1]})`)
+                        .append('text')
                         .filter(d => d.visible == true)
                         .text(d => d.id)
+                        .attr('transform',d => orientation == "horizontal" ? 'rotate(90)' : 'rotate(0)')
 
                 // middle of rect should be in the width / 2
                 const bodyWidth = 30;
                 const bodyMiddle = Math.floor(width / 2) - bodyWidth / 2;
 
-                bodyGroup.append('rect')
-                        .attr('x',bodyMiddle)
-                        .attr('y',75)
-                        .attr('width',30)
-                        .attr('height',30)
-                        .classed('rounded', true);
-
-
-
-                var link = d3.linkVertical<any,any,entry>()
-                    .source(d => d.parent)
-                    .target(d => d.position);
-
-
-                bodyGroup
-                .selectAll("path")
-                .data(bodyOutArray)
-                .join("path")
-                .attr("d", link)
-                .attr("fill", "none")
-                .attr("stroke", "black")
-                .style("stroke-width", "1px");
+                const rect = bodyGroup.append('rect')
+                              .attr('x',bodyMiddle)
+                              .attr('y',75)
+                              .attr('width',30)
+                              .attr('height',30)
+                              // .classed('rounded', true)
+                
+                edge.style(rect)
 
                 heights.push(1)
             

@@ -3,6 +3,7 @@
   "compilerOptions": {
     "module": "esnext",
     "target": "esnext",
+    "declaration": true,
     "moduleResolution": "node",
     "jsx": "preserve",
     "baseUrl": "./",
